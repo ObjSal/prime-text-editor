@@ -95,6 +95,25 @@ component EditorField inherits Rectangle {
     }
 }
 
+// A vertically-centered icon for use inside a HorizontalLayout row. The SDK
+// Icon, as a direct layout child, gets stretched (and its glyph rides the top);
+// a fixed-size wrapper with an explicitly-centered Image centers like IconBtn.
+component RowGlyph inherits Rectangle {
+    in property <image> icon;
+    in property <color> icon-color: Theme.palette-foreground;
+    in property <length> glyph-size: 24px;
+    width: 28px;
+    height: 28px;
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.glyph-size;
+        height: root.glyph-size;
+        source: root.icon;
+        colorize: root.icon-color;
+    }
+}
+
 // A single row in the file list.
 component FileEntry inherits Rectangle {
     in property <FileRow> entry;
@@ -106,8 +125,7 @@ component FileEntry inherits Rectangle {
         padding-right: 8px;
         spacing: 12px;
 
-        Icon {
-            width: 24px;
+        RowGlyph {
             icon: root.entry.is-folder ? @image-url("icons/folder.svg") : @image-url("icons/file.svg");
             icon-color: root.entry.is-folder ? Theme.palette-primary : Theme.palette-foreground;
         }
@@ -186,9 +204,10 @@ component MenuRow inherits Rectangle {
             font-size: 17px;
             font-weight: 600;
         }
-        Icon {
-            width: 20px;
+        RowGlyph {
             icon: root.icon;
+            icon-color: Theme.palette-foreground;
+            glyph-size: 22px;
         }
     }
 }

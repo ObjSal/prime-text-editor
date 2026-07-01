@@ -95,78 +95,66 @@ component EditorField inherits Rectangle {
     }
 }
 
-// A vertically-centered icon for use inside a HorizontalLayout row. The SDK
-// Icon, as a direct layout child, gets stretched (and its glyph rides the top);
-// a fixed-size wrapper with an explicitly-centered Image centers like IconBtn.
-component RowGlyph inherits Rectangle {
-    in property <image> icon;
-    in property <color> icon-color: Theme.palette-foreground;
-    in property <length> glyph-size: 24px;
-    width: 28px;
-    height: 28px;
-    Image {
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        width: root.glyph-size;
-        height: root.glyph-size;
-        source: root.icon;
-        colorize: root.icon-color;
-    }
-}
-
-// A single row in the file list.
+// A single row in the file list. Uses explicit geometry (not a HorizontalLayout)
+// so every element is vertically centered via y = (row - self)/2 — the layout
+// cross-axis was not centering the icon/buttons.
 component FileEntry inherits Rectangle {
     in property <FileRow> entry;
     height: 60px;
     background: touch.has-hover ? Theme.palette-secondary : transparent;
 
-    HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        spacing: 12px;
+    Image {
+        x: 12px;
+        y: (parent.height - self.height) / 2;
+        width: 24px;
+        height: 24px;
+        source: root.entry.is-folder ? @image-url("icons/folder.svg") : @image-url("icons/file.svg");
+        colorize: root.entry.is-folder ? Theme.palette-primary : Theme.palette-foreground;
+    }
 
-        RowGlyph {
-            icon: root.entry.is-folder ? @image-url("icons/folder.svg") : @image-url("icons/file.svg");
-            icon-color: root.entry.is-folder ? Theme.palette-primary : Theme.palette-foreground;
+    trash := IconBtn {
+        x: parent.width - self.width - 8px;
+        y: (parent.height - self.height) / 2;
+        icon: @image-url("icons/trash-2.svg");
+        icon-color: Theme.palette-danger;
+        clicked => {
+            Ui.target-name = root.entry.name;
+            Ui.show-delete = true;
         }
+    }
+    pencil := IconBtn {
+        x: trash.x - self.width - 8px;
+        y: (parent.height - self.height) / 2;
+        icon: @image-url("icons/pencil.svg");
+        clicked => {
+            Ui.target-name = root.entry.name;
+            Ui.input-text = root.entry.name;
+            Ui.show-rename = true;
+        }
+    }
 
-        touch := TouchArea {
-            horizontal-stretch: 1;
-            clicked => {
-                Callbacks.entry-activated(root.entry.name, root.entry.is-folder);
-            }
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    text: root.entry.name;
-                    color: Theme.palette-foreground;
-                    font-family: "Montserrat";
-                    font-size: 18px;
-                    overflow: elide;
-                }
-                Text {
-                    text: root.entry.info;
-                    color: Theme.palette-muted;
-                    font-family: "Montserrat";
-                    font-size: 13px;
-                }
-            }
+    touch := TouchArea {
+        x: 48px;
+        y: 0px;
+        width: pencil.x - 48px - 8px;
+        height: parent.height;
+        clicked => {
+            Callbacks.entry-activated(root.entry.name, root.entry.is-folder);
         }
-
-        IconBtn {
-            icon: @image-url("icons/pencil.svg");
-            clicked => {
-                Ui.target-name = root.entry.name;
-                Ui.input-text = root.entry.name;
-                Ui.show-rename = true;
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: root.entry.name;
+                color: Theme.palette-foreground;
+                font-family: "Montserrat";
+                font-size: 18px;
+                overflow: elide;
             }
-        }
-        IconBtn {
-            icon: @image-url("icons/trash-2.svg");
-            icon-color: Theme.palette-danger;
-            clicked => {
-                Ui.target-name = root.entry.name;
-                Ui.show-delete = true;
+            Text {
+                text: root.entry.info;
+                color: Theme.palette-muted;
+                font-family: "Montserrat";
+                font-size: 13px;
             }
         }
     }
@@ -191,24 +179,25 @@ component MenuRow inherits Rectangle {
             root.triggered();
         }
     }
-    HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        spacing: 12px;
-        Text {
-            vertical-alignment: center;
-            horizontal-stretch: 1;
-            text: root.text;
-            color: Theme.palette-foreground;
-            font-family: "Montserrat";
-            font-size: 17px;
-            font-weight: 600;
-        }
-        RowGlyph {
-            icon: root.icon;
-            icon-color: Theme.palette-foreground;
-            glyph-size: 22px;
-        }
+    Text {
+        x: 16px;
+        width: parent.width - 16px - 46px;
+        height: parent.height;
+        vertical-alignment: center;
+        text: root.text;
+        color: Theme.palette-foreground;
+        font-family: "Montserrat";
+        font-size: 17px;
+        font-weight: 600;
+        overflow: elide;
+    }
+    Image {
+        x: parent.width - self.width - 16px;
+        y: (parent.height - self.height) / 2;
+        width: 22px;
+        height: 22px;
+        source: root.icon;
+        colorize: Theme.palette-foreground;
     }
 }
 

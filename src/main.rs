@@ -137,11 +137,10 @@ fn app_main(cx: AppContext, ui: AppWindow) {
                     let editor = ui.global::<Editor>();
                     editor.set_content(text.into());
                     editor.set_filename(name);
-                    let ui_g = ui.global::<Ui>();
-                    ui_g.set_message("".into());
-                    ui_g.set_editing(true);
+                    show_info(&ui, "");
+                    ui.global::<Ui>().set_editing(true);
                 }
-                Err(msg) => ui.global::<Ui>().set_message(msg.into()),
+                Err(msg) => show_error(&ui, msg),
             }
         });
     }
@@ -182,12 +181,36 @@ fn app_main(cx: AppContext, ui: AppWindow) {
                     let editor = ui.global::<Editor>();
                     editor.set_content("".into());
                     editor.set_filename(name.into());
-                    let ui_g = ui.global::<Ui>();
-                    ui_g.set_message("".into());
-                    ui_g.set_editing(true);
+                    show_info(&ui, "");
+                    ui.global::<Ui>().set_editing(true);
                 }
-                Err(e) => ui.global::<Ui>().set_message(err_msg(&e).into()),
+                Err(e) => show_error(&ui, err_msg(&e)),
             }
+        });
+    }
+
+    // Create a new folder in the current directory.
+    {
+        let fs = fs.clone();
+        let state = state.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh.clone();
+        callbacks.on_new_folder(move |name| {
+            let name = name.to_string();
+            if name.trim().is_empty() {
+                return;
+            }
+            let (loc, dir) = {
+                let s = state.borrow();
+                (s.location, s.path.clone())
+            };
+            let full = join_path(&dir, &name);
+            if let Err(e) = fs.create_dir(full.as_str(), loc) {
+                if let Some(ui) = ui_weak.upgrade() {
+                    show_error(&ui, err_msg(&e));
+                }
+            }
+            refresh();
         });
     }
 
@@ -197,6 +220,7 @@ fn app_main(cx: AppContext, ui: AppWindow) {
         let state = state.clone();
         let ui_weak = ui_weak.clone();
         callbacks.on_save_file(move || {
+            log::info!("cb: save-file");
             let Some(ui) = ui_weak.upgrade() else { return };
             let (loc, full) = {
                 let s = state.borrow();
@@ -208,8 +232,8 @@ fn app_main(cx: AppContext, ui: AppWindow) {
                 .open_file(full.as_str(), loc, OpenFlags::CREATE)
                 .and_then(|mut f| f.overwrite(content.as_bytes()));
             match result {
-                Ok(()) => ui.global::<Ui>().set_message("Saved".into()),
-                Err(e) => ui.global::<Ui>().set_message(err_msg(&e).into()),
+                Ok(()) => show_info(&ui, "Saved"),
+                Err(e) => show_error(&ui, err_msg(&e)),
             }
         });
     }
@@ -220,6 +244,7 @@ fn app_main(cx: AppContext, ui: AppWindow) {
         let ui_weak = ui_weak.clone();
         let refresh = refresh.clone();
         callbacks.on_close_editor(move || {
+            log::info!("cb: close-editor");
             state.borrow_mut().open_path = None;
             if let Some(ui) = ui_weak.upgrade() {
                 ui.global::<Ui>().set_editing(false);
@@ -242,7 +267,7 @@ fn app_main(cx: AppContext, ui: AppWindow) {
             let full = join_path(&dir, name.as_str());
             if let Err(e) = fs.remove(full.as_str(), loc) {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.global::<Ui>().set_message(err_msg(&e).into());
+                    show_error(&ui, err_msg(&e));
                 }
             }
             refresh();
@@ -268,7 +293,7 @@ fn app_main(cx: AppContext, ui: AppWindow) {
             let to_full = join_path(&dir, &to);
             if let Err(e) = fs.rename(from_full.as_str(), to_full.as_str(), loc) {
                 if let Some(ui) = ui_weak.upgrade() {
-                    ui.global::<Ui>().set_message(err_msg(&e).into());
+                    show_error(&ui, err_msg(&e));
                 }
             }
             refresh();
@@ -290,6 +315,18 @@ fn read_text(
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).map_err(|_| "Read failed".to_string())?;
     String::from_utf8(buf).map_err(|_| "Not a text file".to_string())
+}
+
+fn show_info(ui: &AppWindow, msg: &str) {
+    let u = ui.global::<Ui>();
+    u.set_message(msg.into());
+    u.set_message_error(false);
+}
+
+fn show_error(ui: &AppWindow, msg: String) {
+    let u = ui.global::<Ui>();
+    u.set_message(msg.into());
+    u.set_message_error(true);
 }
 
 fn location_for(index: i32) -> Location {

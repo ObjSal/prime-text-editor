@@ -25,12 +25,15 @@ export global Editor {
 // Transient UI state: which screen/modal is showing, and shared field values.
 export global Ui {
     in-out property <bool> editing: false;      // false = browser, true = editor
+    in-out property <bool> show-menu: false;     // the ••• dropdown menu
     in-out property <bool> show-new: false;      // "new file" name prompt
+    in-out property <bool> show-new-folder: false; // "new folder" name prompt
     in-out property <bool> show-rename: false;   // "rename" name prompt
     in-out property <bool> show-delete: false;   // delete confirmation
     in-out property <string> input-text: "";     // shared text field (new / rename)
     in-out property <string> target-name: "";    // entry a rename/delete acts on
     in property <string> message: "";            // transient info/error banner
+    in property <bool> message-error: false;     // true = error (red), false = info
 }
 
 // Callbacks bridged to Rust in main.rs.
@@ -39,6 +42,7 @@ export global Callbacks {
     callback entry-activated(string, bool);   // name, is-folder -> descend or open
     callback go-back();
     callback new-file(string);                // filename
+    callback new-folder(string);              // folder name
     callback save-file();
     callback close-editor();
     callback delete-entry(string);            // name

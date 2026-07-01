@@ -1,7 +1,6 @@
-import { Theme, UISize, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Theme, UISize, ButtonVariant } from "@ui/theme.slint";
 import { Callbacks, Browser, Editor, Ui, FileRow } from "callbacks.slint";
 import { Button } from "@ui/button.slint";
-import { IconButton, IconButtonSize } from "@ui/icon_button.slint";
 import { Icon } from "@ui/icon.slint";
 import { Input } from "@ui/input.slint";
 import { TextArea } from "@ui/textarea.slint";
@@ -9,6 +8,37 @@ import { SegmentedControl } from "@ui/segmented_control.slint";
 import { Dialog, DialogVariant } from "@ui/dialog.slint";
 
 export { Callbacks, Browser, Editor, Ui, FileRow, Theme }
+
+// A round icon button built from a raw TouchArea. The SDK IconButton sizes its
+// touch area to a fixed control-size rather than the laid-out size, so its
+// clicks don't register once a layout gives it a different size — a plain
+// TouchArea (as used for the file rows and menu) is reliable.
+component IconBtn inherits Rectangle {
+    in property <image> icon;
+    in property <color> icon-color: Theme.palette-foreground;
+    in property <length> diameter: 44px;
+    callback clicked();
+
+    width: diameter;
+    height: diameter;
+    border-radius: diameter / 2;
+    background: touch.pressed
+        ? Theme.palette-secondary-pressed
+        : (touch.has-hover ? Theme.palette-secondary : Theme.palette-secondary.with-alpha(0.4));
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+    Icon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.diameter * 0.5;
+        icon: root.icon;
+        icon-color: root.icon-color;
+    }
+}
 
 // A single row in the file list.
 component FileEntry inherits Rectangle {
@@ -50,18 +80,16 @@ component FileEntry inherits Rectangle {
             }
         }
 
-        IconButton {
+        IconBtn {
             icon: @image-url("icons/pencil.svg");
-            size: IconButtonSize.sm;
             clicked => {
                 Ui.target-name = root.entry.name;
                 Ui.input-text = root.entry.name;
                 Ui.show-rename = true;
             }
         }
-        IconButton {
+        IconBtn {
             icon: @image-url("icons/trash-2.svg");
-            size: IconButtonSize.sm;
             icon-color: Theme.palette-danger;
             clicked => {
                 Ui.target-name = root.entry.name;
@@ -77,26 +105,134 @@ component FileEntry inherits Rectangle {
     }
 }
 
-// The browse screen: tab bar + path row + scrollable list.
+// A row inside the ••• dropdown menu.
+component MenuRow inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    callback triggered();
+    height: 52px;
+    background: touch.has-hover ? Theme.palette-secondary : transparent;
+
+    touch := TouchArea {
+        clicked => {
+            root.triggered();
+        }
+    }
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 12px;
+        Text {
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            text: root.text;
+            color: Theme.palette-foreground;
+            font-family: "Montserrat";
+            font-size: 17px;
+            font-weight: 600;
+        }
+        Icon {
+            width: 20px;
+            icon: root.icon;
+        }
+    }
+}
+
+// A centered modal with one text field (used for New file / New folder / Rename).
+component NamePrompt inherits Rectangle {
+    in property <string> title;
+    in property <string> confirm-label;
+    in property <string> placeholder: "Name";
+    callback confirmed(string);
+    callback cancelled();
+
+    background: rgba(0, 0, 0, 0.55);
+
+    TouchArea {
+        clicked => {
+            root.cancelled();
+        }
+    }
+
+    Rectangle {
+        width: 86%;
+        height: 214px;
+        background: Theme.palette-surface;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: Theme.palette-border;
+
+        // Swallow taps on the panel so they don't dismiss.
+        TouchArea {}
+
+        VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+
+            Text {
+                text: root.title;
+                color: Theme.palette-foreground;
+                font-family: "Montserrat";
+                font-size: 20px;
+                font-weight: 600;
+            }
+            Input {
+                value <=> Ui.input-text;
+                placeholder: root.placeholder;
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                Button {
+                    full-width: true;
+                    variant: ButtonVariant.secondary;
+                    text: "Cancel";
+                    clicked => {
+                        root.cancelled();
+                    }
+                }
+                Button {
+                    full-width: true;
+                    text: root.confirm-label;
+                    clicked => {
+                        root.confirmed(Ui.input-text);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The browse screen: tabs + ••• menu, path row, scrollable list.
 component BrowserView inherits VerticalLayout {
     spacing: 12px;
 
-    SegmentedControl {
-        height: 52px;
-        options: ["Internal", "Airlock", "USB"];
-        selected-index <=> Browser.location-index;
-        changed(idx, label) => {
-            Callbacks.location-changed(idx);
+    HorizontalLayout {
+        height: 56px;
+        spacing: 8px;
+        SegmentedControl {
+            horizontal-stretch: 1;
+            height: 52px;
+            options: ["Internal", "Airlock", "USB"];
+            selected-index <=> Browser.location-index;
+            changed(idx, label) => {
+                Callbacks.location-changed(idx);
+            }
+        }
+        IconBtn {
+            icon: @image-url("icons/ellipsis.svg");
+            diameter: 52px;
+            clicked => {
+                Ui.show-menu = !Ui.show-menu;
+            }
         }
     }
 
     HorizontalLayout {
         spacing: 8px;
-        height: 40px;
+        height: 48px;
 
-        if !Browser.at-root: IconButton {
+        if !Browser.at-root: IconBtn {
             icon: @image-url("icons/arrow-left.svg");
-            size: IconButtonSize.sm;
             clicked => {
                 Callbacks.go-back();
             }
@@ -110,19 +246,11 @@ component BrowserView inherits VerticalLayout {
             font-size: 15px;
             overflow: elide;
         }
-        IconButton {
-            icon: @image-url("icons/plus.svg");
-            size: IconButtonSize.sm;
-            clicked => {
-                Ui.input-text = "";
-                Ui.show-new = true;
-            }
-        }
     }
 
     if Ui.message != "": Text {
         text: Ui.message;
-        color: Theme.palette-danger;
+        color: Ui.message-error ? Theme.palette-danger : Theme.palette-primary;
         font-family: "Montserrat";
         font-size: 14px;
     }
@@ -148,16 +276,20 @@ component BrowserView inherits VerticalLayout {
 }
 
 // The editor screen: header (back / name / save) + text field.
-component EditorView inherits VerticalLayout {
-    spacing: 12px;
-
+// Explicit geometry (not a VerticalLayout): the header is pinned at the top and
+// the TextArea below it, so the TextArea can never overlap and swallow the
+// header buttons' taps.
+component EditorView inherits Rectangle {
+    // Header bar.
     HorizontalLayout {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: 56px;
         spacing: 8px;
-        height: 44px;
 
-        IconButton {
+        IconBtn {
             icon: @image-url("icons/arrow-left.svg");
-            size: IconButtonSize.sm;
             clicked => {
                 Callbacks.close-editor();
             }
@@ -172,7 +304,7 @@ component EditorView inherits VerticalLayout {
             font-weight: 600;
             overflow: elide;
         }
-        IconButton {
+        IconBtn {
             icon: @image-url("icons/save.svg");
             clicked => {
                 Callbacks.save-file();
@@ -180,76 +312,17 @@ component EditorView inherits VerticalLayout {
         }
     }
 
+    // Editor body, pinned below the header.
     TextArea {
-        vertical-stretch: 1;
+        x: 0;
+        y: 68px;
+        width: parent.width;
+        height: parent.height - 68px;
         value <=> Editor.content;
         placeholder: "Empty file";
         font-family: "SourceCodePro";
-        min-rows: 16;
-        max-rows: 16;
-    }
-}
-
-// A simple centered modal with a single text field (used for New file / Rename).
-component NamePrompt inherits Rectangle {
-    in property <string> title;
-    in property <string> confirm-label;
-    callback confirmed(string);
-    callback cancelled();
-
-    background: rgba(0, 0, 0, 0.5);
-
-    TouchArea {
-        clicked => {
-            root.cancelled();
-        }
-    }
-
-    Rectangle {
-        width: 88%;
-        height: panel.preferred-height + 48px;
-        background: Theme.palette-surface;
-        border-radius: 16px;
-        border-width: 1px;
-        border-color: Theme.palette-border;
-
-        // Swallow taps on the panel so they don't dismiss.
-        TouchArea {}
-
-        panel := VerticalLayout {
-            padding: 24px;
-            spacing: 16px;
-
-            Text {
-                text: root.title;
-                color: Theme.palette-foreground;
-                font-family: "Montserrat";
-                font-size: 20px;
-                font-weight: 600;
-            }
-            Input {
-                value <=> Ui.input-text;
-                placeholder: "File name";
-            }
-            HorizontalLayout {
-                spacing: 12px;
-                Button {
-                    full-width: true;
-                    variant: ButtonVariant.secondary;
-                    text: "Cancel";
-                    clicked => {
-                        root.cancelled();
-                    }
-                }
-                Button {
-                    full-width: true;
-                    text: root.confirm-label;
-                    clicked => {
-                        root.confirmed(Ui.input-text);
-                    }
-                }
-            }
-        }
+        disable-autosize: true;
+        min-rows: 18;
     }
 }
 
@@ -264,6 +337,7 @@ export component AppWindow inherits Window {
         height: parent.height;
         background: Theme.palette-background;
 
+        // Main content.
         VerticalLayout {
             padding-left: 20px;
             padding-right: 20px;
@@ -273,54 +347,121 @@ export component AppWindow inherits Window {
             if !Ui.editing: BrowserView {}
             if Ui.editing: EditorView {}
         }
-    }
 
-    if Ui.show-new: NamePrompt {
-        width: 100%;
-        height: 100%;
-        title: "New file";
-        confirm-label: "Create";
-        confirmed(name) => {
-            Ui.show-new = false;
-            Callbacks.new-file(name);
-        }
-        cancelled => {
-            Ui.show-new = false;
-        }
-    }
+        // --- Overlays (later siblings render on top of the content) ---
 
-    if Ui.show-rename: NamePrompt {
-        width: 100%;
-        height: 100%;
-        title: "Rename";
-        confirm-label: "Rename";
-        confirmed(name) => {
-            Ui.show-rename = false;
-            Callbacks.rename-entry(Ui.target-name, name);
-        }
-        cancelled => {
-            Ui.show-rename = false;
-        }
-    }
+        // ••• dropdown, anchored top-right under the menu button.
+        if Ui.show-menu: Rectangle {
+            width: 100%;
+            height: 100%;
+            TouchArea {
+                clicked => {
+                    Ui.show-menu = false;
+                }
+            }
+            Rectangle {
+                x: parent.width - self.width - 20px;
+                y: 20px + UISize.control-center-status-bar-height + 44px;
+                width: 210px;
+                height: 116px;
+                background: Theme.palette-surface;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: Theme.palette-border;
 
-    if Ui.show-delete: Dialog {
-        width: 100%;
-        height: 100%;
-        open: true;
-        title: "Delete";
-        message: "Delete \"" + Ui.target-name + "\"?";
-        primary-action: "Delete";
-        secondary-action: "Cancel";
-        variant: DialogVariant.danger;
-        primary-clicked => {
-            Ui.show-delete = false;
-            Callbacks.delete-entry(Ui.target-name);
+                VerticalLayout {
+                    padding-top: 6px;
+                    padding-bottom: 6px;
+                    MenuRow {
+                        text: "New file";
+                        icon: @image-url("icons/file.svg");
+                        triggered => {
+                            Ui.show-menu = false;
+                            Ui.input-text = "";
+                            Ui.show-new = true;
+                        }
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.palette-border;
+                    }
+                    MenuRow {
+                        text: "New folder";
+                        icon: @image-url("icons/folder.svg");
+                        triggered => {
+                            Ui.show-menu = false;
+                            Ui.input-text = "";
+                            Ui.show-new-folder = true;
+                        }
+                    }
+                }
+            }
         }
-        secondary-clicked => {
-            Ui.show-delete = false;
+
+        if Ui.show-new: NamePrompt {
+            width: 100%;
+            height: 100%;
+            title: "New file";
+            confirm-label: "Create";
+            placeholder: "File name";
+            confirmed(name) => {
+                Ui.show-new = false;
+                Callbacks.new-file(name);
+            }
+            cancelled => {
+                Ui.show-new = false;
+            }
         }
-        dismissed => {
-            Ui.show-delete = false;
+
+        if Ui.show-new-folder: NamePrompt {
+            width: 100%;
+            height: 100%;
+            title: "New folder";
+            confirm-label: "Create";
+            placeholder: "Folder name";
+            confirmed(name) => {
+                Ui.show-new-folder = false;
+                Callbacks.new-folder(name);
+            }
+            cancelled => {
+                Ui.show-new-folder = false;
+            }
+        }
+
+        if Ui.show-rename: NamePrompt {
+            width: 100%;
+            height: 100%;
+            title: "Rename";
+            confirm-label: "Rename";
+            placeholder: "New name";
+            confirmed(name) => {
+                Ui.show-rename = false;
+                Callbacks.rename-entry(Ui.target-name, name);
+            }
+            cancelled => {
+                Ui.show-rename = false;
+            }
+        }
+
+        if Ui.show-delete: Dialog {
+            width: 100%;
+            height: 100%;
+            open: true;
+            title: "Delete";
+            message: "Delete \"" + Ui.target-name + "\"?";
+            primary-action: "Delete";
+            secondary-action: "Cancel";
+            variant: DialogVariant.danger;
+            primary-clicked => {
+                Ui.show-delete = false;
+                Callbacks.delete-entry(Ui.target-name);
+            }
+            secondary-clicked => {
+                Ui.show-delete = false;
+            }
+            dismissed => {
+                Ui.show-delete = false;
+            }
         }
     }
 }

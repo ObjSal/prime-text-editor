@@ -3,7 +3,6 @@ import { Callbacks, Browser, Editor, Ui, FileRow } from "callbacks.slint";
 import { Button } from "@ui/button.slint";
 import { Icon } from "@ui/icon.slint";
 import { Input } from "@ui/input.slint";
-import { TextArea } from "@ui/textarea.slint";
 import { SegmentedControl } from "@ui/segmented_control.slint";
 import { Dialog, DialogVariant } from "@ui/dialog.slint";
 
@@ -37,6 +36,62 @@ component IconBtn inherits Rectangle {
         width: root.diameter * 0.5;
         icon: root.icon;
         icon-color: root.icon-color;
+    }
+}
+
+// A scrollable, on-theme multiline text editor: a Flickable (drag-scroll) around
+// a builtin TextInput with cursor-following (the textedit-base.slint pattern).
+// The SDK TextArea can't scroll (it clips past max-rows), so we roll our own.
+component EditorField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    out property <bool> has-focus: input.has-focus;
+    forward-focus: input;
+
+    property <length> pad: 16px;
+
+    background: Theme.palette-secondary;
+    border-radius: 16px;
+    clip: true;
+
+    fly := Flickable {
+        x: root.pad;
+        y: root.pad;
+        width: parent.width - 2 * root.pad;
+        height: parent.height - 2 * root.pad;
+        viewport-width: self.width;
+        viewport-height: max(self.height, input.preferred-height);
+
+        input := TextInput {
+            width: parent.width;
+            text <=> root.text;
+            color: Theme.palette-foreground;
+            font-family: "SourceCodePro";
+            font-size: 18px;
+            single-line: false;
+            wrap: word-wrap;
+            vertical-alignment: top;
+            page-height: fly.height;
+
+            // Keep the cursor visible as the user types / navigates.
+            cursor-position-changed(cpos) => {
+                if (cpos.y + fly.viewport-y < 12px) {
+                    fly.viewport-y = min(0px, max(fly.height - self.height, -cpos.y + 12px));
+                } else if (cpos.y + fly.viewport-y > fly.height - 12px - 24px) {
+                    fly.viewport-y = min(0px, max(fly.height - self.height, fly.height - cpos.y - 12px - 24px));
+                }
+            }
+        }
+    }
+
+    Text {
+        x: root.pad;
+        y: root.pad;
+        width: parent.width - 2 * root.pad;
+        text: root.text == "" && input.preedit-text == "" ? root.placeholder : "";
+        color: Theme.palette-muted;
+        font-family: "SourceCodePro";
+        font-size: 18px;
     }
 }
 
@@ -207,11 +262,13 @@ component BrowserView inherits VerticalLayout {
     spacing: 12px;
 
     HorizontalLayout {
-        height: 56px;
+        // Match the SegmentedControl's natural height (md control 56 + 2×4 list
+        // padding = 64) so the tabs bar and the kebab are the same height and
+        // vertically centered.
+        height: 64px;
         spacing: 8px;
         SegmentedControl {
             horizontal-stretch: 1;
-            height: 52px;
             options: ["Internal", "Airlock", "USB"];
             selected-index <=> Browser.location-index;
             changed(idx, label) => {
@@ -220,7 +277,7 @@ component BrowserView inherits VerticalLayout {
         }
         IconBtn {
             icon: @image-url("icons/ellipsis.svg");
-            diameter: 52px;
+            diameter: 64px;
             clicked => {
                 Ui.show-menu = !Ui.show-menu;
             }
@@ -307,22 +364,26 @@ component EditorView inherits Rectangle {
         IconBtn {
             icon: @image-url("icons/save.svg");
             clicked => {
+                // Blur the field first so the on-screen keyboard closes (goal 1),
+                // then save.
+                editor-field.clear-focus();
                 Callbacks.save-file();
             }
         }
     }
 
-    // Editor body, pinned below the header.
-    TextArea {
+    // Editor body, pinned below the header. Fills the space when unfocused
+    // (no gap); shrinks above the 396px keyboard overlay when focused so its
+    // content stays visible and scrollable. (~376px = 396 − 20px bottom padding.)
+    editor-field := EditorField {
         x: 0;
         y: 68px;
         width: parent.width;
-        height: parent.height - 68px;
-        value <=> Editor.content;
+        height: self.has-focus
+            ? parent.height - 68px - 340px
+            : parent.height - 68px;
+        text <=> Editor.content;
         placeholder: "Empty file";
-        font-family: "SourceCodePro";
-        disable-autosize: true;
-        min-rows: 18;
     }
 }
 
@@ -362,8 +423,8 @@ export component AppWindow inherits Window {
             Rectangle {
                 x: parent.width - self.width - 20px;
                 y: 20px + UISize.control-center-status-bar-height + 44px;
-                width: 210px;
-                height: 116px;
+                width: 230px;
+                height: 176px;
                 background: Theme.palette-surface;
                 border-radius: 14px;
                 border-width: 1px;
@@ -392,6 +453,18 @@ export component AppWindow inherits Window {
                             Ui.show-menu = false;
                             Ui.input-text = "";
                             Ui.show-new-folder = true;
+                        }
+                    }
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.palette-border;
+                    }
+                    MenuRow {
+                        text: Ui.show-hidden ? "Hide hidden files" : "Show hidden files";
+                        icon: @image-url("icons/eye.svg");
+                        triggered => {
+                            Ui.show-menu = false;
+                            Callbacks.toggle-hidden();
                         }
                     }
                 }

@@ -15,6 +15,7 @@ struct State {
     location: Location,
     path: String,             // current directory, always starts with '/'
     open_path: Option<String>, // full path of the file currently in the editor
+    show_hidden: bool,        // include dot-prefixed entries in the listing
 }
 
 fn app_main(cx: AppContext, ui: AppWindow) {
@@ -29,6 +30,7 @@ fn app_main(cx: AppContext, ui: AppWindow) {
         location: Location::User,
         path: "/".to_string(),
         open_path: None,
+        show_hidden: false,
     }));
 
     // Re-list the current directory and push it into the Browser global.
@@ -38,9 +40,9 @@ fn app_main(cx: AppContext, ui: AppWindow) {
         let ui_weak = ui_weak.clone();
         Rc::new(move || {
             let Some(ui) = ui_weak.upgrade() else { return };
-            let (loc, path) = {
+            let (loc, path, show_hidden) = {
                 let s = state.borrow();
-                (s.location, s.path.clone())
+                (s.location, s.path.clone(), s.show_hidden)
             };
             let browser = ui.global::<Browser>();
 
@@ -51,6 +53,9 @@ fn app_main(cx: AppContext, ui: AppWindow) {
                     match dir.next_entry() {
                         Ok(Some(entry)) => {
                             if entry.name == "." || entry.name == ".." {
+                                continue;
+                            }
+                            if !show_hidden && entry.name.starts_with('.') {
                                 continue;
                             }
                             let info = if entry.is_dir {
@@ -106,6 +111,24 @@ fn app_main(cx: AppContext, ui: AppWindow) {
                 let mut s = state.borrow_mut();
                 s.location = location_for(idx);
                 s.path = "/".to_string();
+            }
+            refresh();
+        });
+    }
+
+    // Toggle showing dot-prefixed (hidden) files/folders.
+    {
+        let state = state.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh.clone();
+        callbacks.on_toggle_hidden(move || {
+            let now = {
+                let mut s = state.borrow_mut();
+                s.show_hidden = !s.show_hidden;
+                s.show_hidden
+            };
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.global::<Ui>().set_show_hidden(now);
             }
             refresh();
         });

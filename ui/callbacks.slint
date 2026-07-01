@@ -26,6 +26,7 @@ export global Editor {
 export global Ui {
     in-out property <bool> editing: false;      // false = browser, true = editor
     in-out property <bool> show-menu: false;     // the ••• dropdown menu
+    in-out property <bool> show-hidden: false;   // reveal dot-prefixed files/folders
     in-out property <bool> show-new: false;      // "new file" name prompt
     in-out property <bool> show-new-folder: false; // "new folder" name prompt
     in-out property <bool> show-rename: false;   // "rename" name prompt
@@ -39,6 +40,7 @@ export global Ui {
 // Callbacks bridged to Rust in main.rs.
 export global Callbacks {
     callback location-changed(int);           // tab index
+    callback toggle-hidden();                 // show/hide dot-prefixed entries
     callback entry-activated(string, bool);   // name, is-folder -> descend or open
     callback go-back();
     callback new-file(string);                // filename

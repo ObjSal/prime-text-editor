@@ -1,0 +1,17 @@
+# Foundation application configuration
+app-name = "prime-text-editor"
+friendly-app-name = "Text Editor"
+launcher-app-name = "Text Editor"
+description = "Browse Internal, Airlock and USB storage; open, edit, save, create, rename and delete text files."
+icon = "resources/icon.svg"
+app-id = "0xc8a16474100dbe18b8311858d5f89bac"
+version = "0.1.0"
+min-keyos-version = "1.0.0"
+
+[publisher]
+name = ""
+contact-email = ""
+support-url = ""
+
+[permissions]
+template = ["gui-app", "fs-generic", "fs-access"]

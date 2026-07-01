@@ -1,0 +1,326 @@
+import { Theme, UISize, ControlSize, ButtonVariant } from "@ui/theme.slint";
+import { Callbacks, Browser, Editor, Ui, FileRow } from "callbacks.slint";
+import { Button } from "@ui/button.slint";
+import { IconButton, IconButtonSize } from "@ui/icon_button.slint";
+import { Icon } from "@ui/icon.slint";
+import { Input } from "@ui/input.slint";
+import { TextArea } from "@ui/textarea.slint";
+import { SegmentedControl } from "@ui/segmented_control.slint";
+import { Dialog, DialogVariant } from "@ui/dialog.slint";
+
+export { Callbacks, Browser, Editor, Ui, FileRow, Theme }
+
+// A single row in the file list.
+component FileEntry inherits Rectangle {
+    in property <FileRow> entry;
+    height: 60px;
+    background: touch.has-hover ? Theme.palette-secondary : transparent;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 12px;
+
+        Icon {
+            width: 24px;
+            icon: root.entry.is-folder ? @image-url("icons/folder.svg") : @image-url("icons/file.svg");
+            icon-color: root.entry.is-folder ? Theme.palette-primary : Theme.palette-foreground;
+        }
+
+        touch := TouchArea {
+            horizontal-stretch: 1;
+            clicked => {
+                Callbacks.entry-activated(root.entry.name, root.entry.is-folder);
+            }
+            VerticalLayout {
+                alignment: center;
+                Text {
+                    text: root.entry.name;
+                    color: Theme.palette-foreground;
+                    font-family: "Montserrat";
+                    font-size: 18px;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.entry.info;
+                    color: Theme.palette-muted;
+                    font-family: "Montserrat";
+                    font-size: 13px;
+                }
+            }
+        }
+
+        IconButton {
+            icon: @image-url("icons/pencil.svg");
+            size: IconButtonSize.sm;
+            clicked => {
+                Ui.target-name = root.entry.name;
+                Ui.input-text = root.entry.name;
+                Ui.show-rename = true;
+            }
+        }
+        IconButton {
+            icon: @image-url("icons/trash-2.svg");
+            size: IconButtonSize.sm;
+            icon-color: Theme.palette-danger;
+            clicked => {
+                Ui.target-name = root.entry.name;
+                Ui.show-delete = true;
+            }
+        }
+    }
+
+    Rectangle {
+        y: parent.height - 1px;
+        height: 1px;
+        background: Theme.palette-border;
+    }
+}
+
+// The browse screen: tab bar + path row + scrollable list.
+component BrowserView inherits VerticalLayout {
+    spacing: 12px;
+
+    SegmentedControl {
+        height: 52px;
+        options: ["Internal", "Airlock", "USB"];
+        selected-index <=> Browser.location-index;
+        changed(idx, label) => {
+            Callbacks.location-changed(idx);
+        }
+    }
+
+    HorizontalLayout {
+        spacing: 8px;
+        height: 40px;
+
+        if !Browser.at-root: IconButton {
+            icon: @image-url("icons/arrow-left.svg");
+            size: IconButtonSize.sm;
+            clicked => {
+                Callbacks.go-back();
+            }
+        }
+        Text {
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            text: Browser.path;
+            color: Theme.palette-muted;
+            font-family: "Montserrat";
+            font-size: 15px;
+            overflow: elide;
+        }
+        IconButton {
+            icon: @image-url("icons/plus.svg");
+            size: IconButtonSize.sm;
+            clicked => {
+                Ui.input-text = "";
+                Ui.show-new = true;
+            }
+        }
+    }
+
+    if Ui.message != "": Text {
+        text: Ui.message;
+        color: Theme.palette-danger;
+        font-family: "Montserrat";
+        font-size: 14px;
+    }
+    if Browser.status != "": Text {
+        text: Browser.status;
+        color: Theme.palette-muted;
+        font-family: "Montserrat";
+        font-size: 16px;
+        horizontal-alignment: center;
+    }
+
+    Flickable {
+        vertical-stretch: 1;
+        viewport-height: Browser.entries.length * 60px;
+        VerticalLayout {
+            alignment: start;
+            spacing: 0px;
+            for item in Browser.entries: FileEntry {
+                entry: item;
+            }
+        }
+    }
+}
+
+// The editor screen: header (back / name / save) + text field.
+component EditorView inherits VerticalLayout {
+    spacing: 12px;
+
+    HorizontalLayout {
+        spacing: 8px;
+        height: 44px;
+
+        IconButton {
+            icon: @image-url("icons/arrow-left.svg");
+            size: IconButtonSize.sm;
+            clicked => {
+                Callbacks.close-editor();
+            }
+        }
+        Text {
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            text: Editor.filename;
+            color: Theme.palette-foreground;
+            font-family: "Montserrat";
+            font-size: 18px;
+            font-weight: 600;
+            overflow: elide;
+        }
+        IconButton {
+            icon: @image-url("icons/save.svg");
+            clicked => {
+                Callbacks.save-file();
+            }
+        }
+    }
+
+    TextArea {
+        vertical-stretch: 1;
+        value <=> Editor.content;
+        placeholder: "Empty file";
+        font-family: "SourceCodePro";
+        min-rows: 16;
+        max-rows: 16;
+    }
+}
+
+// A simple centered modal with a single text field (used for New file / Rename).
+component NamePrompt inherits Rectangle {
+    in property <string> title;
+    in property <string> confirm-label;
+    callback confirmed(string);
+    callback cancelled();
+
+    background: rgba(0, 0, 0, 0.5);
+
+    TouchArea {
+        clicked => {
+            root.cancelled();
+        }
+    }
+
+    Rectangle {
+        width: 88%;
+        height: panel.preferred-height + 48px;
+        background: Theme.palette-surface;
+        border-radius: 16px;
+        border-width: 1px;
+        border-color: Theme.palette-border;
+
+        // Swallow taps on the panel so they don't dismiss.
+        TouchArea {}
+
+        panel := VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+
+            Text {
+                text: root.title;
+                color: Theme.palette-foreground;
+                font-family: "Montserrat";
+                font-size: 20px;
+                font-weight: 600;
+            }
+            Input {
+                value <=> Ui.input-text;
+                placeholder: "File name";
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                Button {
+                    full-width: true;
+                    variant: ButtonVariant.secondary;
+                    text: "Cancel";
+                    clicked => {
+                        root.cancelled();
+                    }
+                }
+                Button {
+                    full-width: true;
+                    text: root.confirm-label;
+                    clicked => {
+                        root.confirmed(Ui.input-text);
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "Text Editor";
+    preferred-width: 480px;
+    preferred-height: 800px;
+    background: Theme.palette-background;
+
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: Theme.palette-background;
+
+        VerticalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 24px + UISize.control-center-status-bar-height;
+            padding-bottom: 20px;
+
+            if !Ui.editing: BrowserView {}
+            if Ui.editing: EditorView {}
+        }
+    }
+
+    if Ui.show-new: NamePrompt {
+        width: 100%;
+        height: 100%;
+        title: "New file";
+        confirm-label: "Create";
+        confirmed(name) => {
+            Ui.show-new = false;
+            Callbacks.new-file(name);
+        }
+        cancelled => {
+            Ui.show-new = false;
+        }
+    }
+
+    if Ui.show-rename: NamePrompt {
+        width: 100%;
+        height: 100%;
+        title: "Rename";
+        confirm-label: "Rename";
+        confirmed(name) => {
+            Ui.show-rename = false;
+            Callbacks.rename-entry(Ui.target-name, name);
+        }
+        cancelled => {
+            Ui.show-rename = false;
+        }
+    }
+
+    if Ui.show-delete: Dialog {
+        width: 100%;
+        height: 100%;
+        open: true;
+        title: "Delete";
+        message: "Delete \"" + Ui.target-name + "\"?";
+        primary-action: "Delete";
+        secondary-action: "Cancel";
+        variant: DialogVariant.danger;
+        primary-clicked => {
+            Ui.show-delete = false;
+            Callbacks.delete-entry(Ui.target-name);
+        }
+        secondary-clicked => {
+            Ui.show-delete = false;
+        }
+        dismissed => {
+            Ui.show-delete = false;
+        }
+    }
+}

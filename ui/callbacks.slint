@@ -1,0 +1,46 @@
+// One row in the file browser list.
+export struct FileRow {
+    name: string,
+    info: string,      // human size, or "Folder"
+    is-folder: bool,
+}
+
+// State of the browser screen, driven from Rust.
+export global Browser {
+    in property <[FileRow]> entries;
+    in property <string> path: "/";
+    in property <bool> at-root: true;
+    // Which storage tab is active: 0 = Internal (User), 1 = Airlock, 2 = USB.
+    in-out property <int> location-index: 0;
+    // Non-empty when the current location can't be listed (e.g. USB not connected).
+    in property <string> status: "";
+}
+
+// State of the editor screen, driven from Rust; `content` is edited by the UI.
+export global Editor {
+    in-out property <string> content: "";
+    in property <string> filename: "";
+}
+
+// Transient UI state: which screen/modal is showing, and shared field values.
+export global Ui {
+    in-out property <bool> editing: false;      // false = browser, true = editor
+    in-out property <bool> show-new: false;      // "new file" name prompt
+    in-out property <bool> show-rename: false;   // "rename" name prompt
+    in-out property <bool> show-delete: false;   // delete confirmation
+    in-out property <string> input-text: "";     // shared text field (new / rename)
+    in-out property <string> target-name: "";    // entry a rename/delete acts on
+    in property <string> message: "";            // transient info/error banner
+}
+
+// Callbacks bridged to Rust in main.rs.
+export global Callbacks {
+    callback location-changed(int);           // tab index
+    callback entry-activated(string, bool);   // name, is-folder -> descend or open
+    callback go-back();
+    callback new-file(string);                // filename
+    callback save-file();
+    callback close-editor();
+    callback delete-entry(string);            // name
+    callback rename-entry(string, string);    // from, to
+}

@@ -234,6 +234,10 @@ component NamePrompt inherits Rectangle {
             Input {
                 value <=> Ui.input-text;
                 placeholder: root.placeholder;
+                // Keyboard "Done" (single-line Return) completes the action.
+                submitted => {
+                    root.confirmed(Ui.input-text);
+                }
             }
             HorizontalLayout {
                 spacing: 12px;
@@ -380,7 +384,7 @@ component EditorView inherits Rectangle {
         y: 68px;
         width: parent.width;
         height: self.has-focus
-            ? parent.height - 68px - 340px
+            ? parent.height - 68px - 300px
             : parent.height - 68px;
         text <=> Editor.content;
         placeholder: "Empty file";

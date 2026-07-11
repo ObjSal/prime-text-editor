@@ -1,4 +1,4 @@
-# Text Editor — a Passport Prime app
+# <img src="resources/icon.svg" alt="" width="42" align="top" /> Text Editor — a Passport Prime app
 
 A Files-app-style browser and text editor for Foundation's **Passport Prime**,
 built as a Rust binary with a **Slint** UI on **KeyOS** (Foundation's Rust

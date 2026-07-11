@@ -74,3 +74,13 @@ Scaffolded from `foundation new prime-text-editor --template default-app`, then
 customized. Normally checked out as a git submodule of a `prime/` workspace
 (alongside a local KeyOS docs knowledge base); it also builds standalone.
 Verified building (signed) and running in the simulator — see `NOTES.md`.
+
+## License & disclaimer
+
+Licensed under the GNU General Public License v3.0 or later — see [COPYING](COPYING).
+
+This software is provided "as is", without warranty of any kind, express or
+implied. Use it at your own risk — to the maximum extent permitted by law, the
+authors, copyright holders, and contributors are not liable for any claim,
+damages, or other liability, including loss of data, arising from this
+software or its use.

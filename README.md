@@ -1,9 +1,8 @@
-# <img src="resources/icon.svg" alt="" width="42" align="top" /> Text Editor — a Passport Prime app
+# <img src="resources/icon.svg" alt="" width="42" align="top" /> Text Editor
 
-A Files-app-style browser and text editor for Foundation's **Passport Prime**,
-built as a Rust binary with a **Slint** UI on **KeyOS** (Foundation's Rust
-microkernel on Xous). Browse the device's storage and open, edit, save, create,
-rename, and delete text files.
+**Productivity · Files** — browse your Passport Prime's storage and edit text files, right on the device.
+
+Your Prime carries files — recovery notes, configuration, exported records. Text Editor lets you read and change them without ever plugging into a computer: browse Internal, Airlock, and USB storage in a familiar Files-style view, tap a file to open it, edit with the on-screen keyboard, and save. Everything happens on the device, offline, the way Prime is designed to work.
 
 <p align="center">
   <img src="screenshots/browser-internal.png" alt="File browser" width="300">
@@ -13,67 +12,28 @@ rename, and delete text files.
 
 ## Features
 
-- **Three storage locations** via a segmented tab bar — **Internal**
-  (`Location::User`), **Airlock**, and **USB** — plus folder navigation.
-- **Open / edit / save** text files. The editor is scrollable, fills the screen,
-  and shrinks above the on-screen keyboard so your content stays visible.
-- **Create** new files and folders, **rename**, and **delete** — from a Files-app
-  style **•••** menu and per-row actions.
-- **Show/hide hidden files** (dot-prefixed) from the menu.
-- Non-UTF-8 files are detected and reported rather than opened as garbage.
+- **All three storage locations** — Internal, Airlock, and USB, switchable with one tap, with full folder navigation.
+- **Open, edit, save** — a full-screen, scrollable editor that keeps your text visible above the on-screen keyboard.
+- **Organize** — create files and folders, rename, and delete from a Files-app-style **•••** menu and per-row actions.
+- **Show or hide hidden files** whenever you need to see everything.
+- **Safe with your data** — files that aren't text are detected and reported instead of being opened as garbage, and deletes ask for confirmation.
+- **Offline by design** — Prime has no network stack; nothing you write ever leaves the device unless you move it yourself.
 
-Everything runs offline — Prime has no network stack by design; all I/O is
-through the KeyOS `fs` API.
+## Get it running
 
-## Build & run
-
-Requires the `foundation` CLI (on `PATH` at `~/.foundation/sdk/bin`) and Nix.
-In a non-login shell, source Nix first:
+With the Foundation SDK installed, build and launch in the simulator with:
 
 ```bash
-. '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
-export PATH="$HOME/.foundation/sdk/bin:$PATH"
+foundation sim
 ```
 
-Then, from this directory (via the SDK's Nix dev shell):
+See **[DEVELOPMENT.md](DEVELOPMENT.md)** for environment setup, hardware builds, permissions, and the project tour.
 
-```bash
-nix develop ~/.foundation/sdk/current --command foundation sim     # hosted simulator
-nix develop ~/.foundation/sdk/current --command foundation build   # compile + sign a hardware bundle
-```
+## Learn more
 
-`foundation sim` is the primary feedback loop (it runs `cargo check` and launches
-the 480×800 simulator). `foundation doctor` checks the environment.
-
-> **Hardware sideload** (`foundation sideload`) is **not** possible on a retail
-> Prime — the `PRIME` USB dev volume is compiled out of production firmware. It
-> needs dev/debug firmware from Foundation. See `NOTES.md`.
-
-## Permissions
-
-Declared in `app-config.toml` → `[permissions]`:
-`template = ["gui-app", "fs-generic", "fs-access"]` — UI + read/write filesystem
-ops + per-location (`User`/`Airlock`/`USB`) read/write access grants. Enforced at
-compile time (undeclared calls fail to build) and by the KeyOS kernel at runtime.
-
-## Project layout
-
-- `app-config.toml` / `permission_templates.toml` — hand-edited config and named
-  permission bundles (`manifest.toml` is generated from them; don't hand-edit).
-- `ui/app.slint`, `ui/callbacks.slint` — the UI and the Slint↔Rust bridge.
-- `src/main.rs` — app logic (filesystem via the app-provided `cx.fs` handle).
-- `src/theme.rs`, `theme/theme.json` — theming.
-
-See **`CLAUDE.md`** for architecture detail and **`NOTES.md`** for build/verify
-notes and the non-obvious gotchas found while building this (e.g. the SDK
-`IconButton` tap bug, overlay nesting, the on-screen-keyboard behavior).
-
-## Notes
-
-Scaffolded from `foundation new prime-text-editor --template default-app`, then
-customized. Normally checked out as a git submodule of a `prime/` workspace
-(alongside a local KeyOS docs knowledge base); it also builds standalone.
-Verified building (signed) and running in the simulator — see `NOTES.md`.
+- [DEVELOPMENT.md](DEVELOPMENT.md) — building, running, permissions, and project layout
+- [THIRD-PARTY.md](THIRD-PARTY.md) — libraries this app is built on
+- [NOTES.md](NOTES.md) — verified build/run results and platform gotchas
 
 ## License & disclaimer
 

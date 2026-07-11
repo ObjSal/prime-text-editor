@@ -5,7 +5,7 @@
 Your Prime carries files — recovery notes, configuration, exported records. Text Editor lets you read and change them without ever plugging into a computer: browse Internal, Airlock, and USB storage in a familiar Files-style view, tap a file to open it, edit with the on-screen keyboard, and save. Everything happens on the device, offline, the way Prime is designed to work.
 
 <p align="center">
-  <img src="screenshots/browser-internal.png" alt="File browser" width="300">
+  <img src="screenshots/browser.png" alt="File browser" width="300">
   &nbsp;&nbsp;
   <img src="screenshots/editor.png" alt="Text editor" width="300">
 </p>

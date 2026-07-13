@@ -244,6 +244,7 @@ component NamePrompt inherits Rectangle {
                 placeholder: root.placeholder;
                 // Keyboard "Done" (single-line Return) completes the action.
                 submitted => {
+                    self.clear-focus(); // hide the keyboard first
                     root.confirmed(Ui.input-text);
                 }
             }
@@ -372,6 +373,16 @@ component EditorView inherits Rectangle {
             font-size: 18px;
             font-weight: 600;
             overflow: elide;
+        }
+        // Dismiss the keyboard WITHOUT saving or leaving — the document
+        // editor is multi-line, so the keyboard's Done key inserts a
+        // newline (content!) instead of dismissing like single-line
+        // fields do; this chevron is the editor's explicit "done typing".
+        if editor-field.has-focus: IconBtn {
+            icon: @image-url("icons/chevron-down.svg");
+            clicked => {
+                editor-field.clear-focus();
+            }
         }
         IconBtn {
             icon: @image-url("icons/save.svg");
